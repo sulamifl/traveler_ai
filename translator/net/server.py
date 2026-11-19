@@ -20,12 +20,14 @@ from typing import Callable, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
+from ..history.store import HistoryStore
 from ..translate.base import Translator
 from .session import Session, SessionError
 
 logger = logging.getLogger(__name__)
 
 TranslatorFactory = Callable[[], Translator]
+HistoryFactory = Callable[[], HistoryStore]
 
 
 class SessionRegistry:
@@ -59,19 +61,46 @@ class SessionRegistry:
             logger.warning("Не удалось отправить %s: %s", participant_id, exc)
 
 
-def create_app(translator_factory: Optional[TranslatorFactory] = None) -> FastAPI:
+def create_app(
+    translator_factory: Optional[TranslatorFactory] = None,
+    history_factory: Optional[HistoryFactory] = None,
+) -> FastAPI:
     """Создать FastAPI-приложение.
 
     `translator_factory` позволяет подменить переводчик в тестах.
+    `history_factory` — фабрика `HistoryStore`; если задана, все реплики
+    и вопросы сохраняются с автором и временем.
     """
     app = FastAPI(title="Translator AR — Group mode")
     registry = SessionRegistry()
     app.state.registry = registry
+    app.state.history_factory = history_factory
 
     def _get_translator() -> Translator:
         if translator_factory is None:
             raise RuntimeError("translator_factory не задан")
         return translator_factory()
+
+    def _record_history(
+        author: str,
+        original_text: str,
+        translated_text: str,
+        source_lang: Optional[str],
+        target_lang: str,
+    ) -> None:
+        if history_factory is None:
+            return
+        try:
+            with history_factory() as store:
+                store.add(
+                    author=author,
+                    original_text=original_text,
+                    translated_text=translated_text,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Не удалось записать историю: %s", exc)
 
     @app.websocket("/ws/{session_id}")
     async def ws_endpoint(websocket: WebSocket, session_id: str) -> None:
@@ -122,9 +151,17 @@ def create_app(translator_factory: Optional[TranslatorFactory] = None) -> FastAP
                                 text, source_lang, author_id=pid
                             )
                         translator = _get_translator()
+                        author_name = session.participants[pid].name
                         for target_id, target_lang in routes:
                             result = translator.translate(
                                 text, target_lang=target_lang, source_lang=source_lang
+                            )
+                            _record_history(
+                                author=author_name,
+                                original_text=text,
+                                translated_text=result.text,
+                                source_lang=source_lang,
+                                target_lang=target_lang,
                             )
                             await registry.send_to(
                                 session_id,
@@ -154,5 +191,28 @@ def create_app(translator_factory: Optional[TranslatorFactory] = None) -> FastAP
                     session.remove_participant(participant_id)
                 except SessionError:
                     pass
+
+    @app.get("/sessions/{session_id}/history")
+    def get_history(session_id: str, limit: int = 50) -> dict:
+        """Последние записи истории сессии (сначала новые)."""
+        if history_factory is None:
+            return {"session_id": session_id, "entries": []}
+        with history_factory() as store:
+            entries = store.list_recent(limit=limit)
+        return {
+            "session_id": session_id,
+            "entries": [
+                {
+                    "id": e.id,
+                    "author": e.author,
+                    "original_text": e.original_text,
+                    "translated_text": e.translated_text,
+                    "source_lang": e.source_lang,
+                    "target_lang": e.target_lang,
+                    "created_at": e.created_at,
+                }
+                for e in entries
+            ],
+        }
 
     return app
