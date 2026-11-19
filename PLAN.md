@@ -8,7 +8,7 @@
 
 ## Этап 1. MVP: базовый перевод речи
 - [x] **Шаг 1.1.** Захват аудио с микрофона → WAV (`translator/audio/recorder.py`) + тест
-- [ ] **Шаг 1.2.** STT через `faster-whisper` (`translator/stt/whisper_stt.py`) + тест с моком
+- [x] **Шаг 1.2.** STT через `faster-whisper` (`translator/stt/whisper_stt.py`) + тест с моком
 - [ ] **Шаг 1.3.** Перевод через DeepSeek API (`translator/translate/deepseek.py`) + тест с моком httpx
 - [ ] **Шаг 1.4.** TTS через `edge-tts` (`translator/tts/edge_tts.py`) + тест
 - [ ] **Шаг 1.5.** CLI-пайплайн: запись → STT → перевод → TTS/текст
