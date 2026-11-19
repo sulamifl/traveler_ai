@@ -16,13 +16,18 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Callable, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from ..history.store import HistoryStore
 from ..translate.base import Translator
 from .session import Session, SessionError
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +80,13 @@ def create_app(
     registry = SessionRegistry()
     app.state.registry = registry
     app.state.history_factory = history_factory
+
+    if _STATIC_DIR.is_dir():
+        app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+        @app.get("/", include_in_schema=False)
+        def index() -> FileResponse:
+            return FileResponse(_STATIC_DIR / "index.html")
 
     def _get_translator() -> Translator:
         if translator_factory is None:

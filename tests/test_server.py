@@ -129,6 +129,21 @@ def test_history_records_author_and_time(tmp_path):
     assert entry["created_at"]
 
 
+def test_index_page_served():
+    client = _client()
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "Translator AR" in resp.text
+
+
+def test_static_index_available():
+    client = _client()
+    resp = client.get("/static/index.html")
+    assert resp.status_code == 200
+    assert "WebSocket" in resp.text
+
+
 def test_join_duplicate_returns_error():
     client = _client()
     with client.websocket_connect("/ws/d") as ws:

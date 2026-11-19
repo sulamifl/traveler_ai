@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Translator AR — Групповой режим</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; max-width: 900px; margin-inline: auto; }
+    h1 { font-size: 1.25rem; margin: 0 0 1rem; }
+    .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: .75rem; }
+    label { font-size: .9rem; }
+    input, select, button { font: inherit; padding: .4rem .6rem; border-radius: 6px; border: 1px solid #888; }
+    button { cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #log { border: 1px solid #888; border-radius: 6px; padding: .5rem; min-height: 200px; max-height: 400px; overflow-y: auto; }
+    .entry { padding: .35rem 0; border-bottom: 1px dashed #555; }
+    .entry:last-child { border-bottom: none; }
+    .meta { font-size: .8rem; opacity: .7; }
+    .error { color: #c33; }
+    #status { font-size: .85rem; opacity: .8; }
+  </style>
+</head>
+<body>
+  <h1>Синхронный переводчик — групповой режим</h1>
+
+  <div class="row">
+    <label>Сессия: <input id="session" value="demo" size="10" /></label>
+    <label>ID: <input id="pid" value="user1" size="8" /></label>
+    <label>Имя: <input id="name" value="User" size="10" /></label>
+    <label>Язык: <select id="lang">
+      <option value="ru">ru</option>
+      <option value="en" selected>en</option>
+      <option value="de">de</option>
+      <option value="fr">fr</option>
+      <option value="es">es</option>
+      <option value="zh">zh</option>
+      <option value="ja">ja</option>
+    </select></label>
+    <label>Роль: <select id="role">
+      <option value="listener" selected>listener</option>
+      <option value="speaker">speaker</option>
+    </select></label>
+    <button id="connect">Подключиться</button>
+    <button id="disconnect" disabled>Отключиться</button>
+  </div>
+
+  <div class="row">
+    <input id="text" placeholder="Введите текст реплики..." style="flex:1; min-width: 200px;" />
+    <label>Исходный: <select id="src">
+      <option value="ru">ru</option>
+      <option value="en" selected>en</option>
+      <option value="de">de</option>
+      <option value="fr">fr</option>
+      <option value="es">es</option>
+      <option value="zh">zh</option>
+      <option value="ja">ja</option>
+    </select></label>
+    <button id="speak" disabled>Сказать</button>
+    <button id="question" disabled>Вопрос</button>
+  </div>
+
+  <div id="status">Не подключено</div>
+  <div id="log"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let ws = null;
+
+    function log(text, meta) {
+      const div = document.createElement("div");
+      div.className = "entry";
+      if (meta) {
+        const m = document.createElement("div");
+        m.className = "meta";
+        m.textContent = meta;
+        div.appendChild(m);
+      }
+      const t = document.createElement("div");
+      t.textContent = text;
+      div.appendChild(t);
+      $("log").prepend(div);
+    }
+
+    function setConnected(on) {
+      $("connect").disabled = on;
+      $("disconnect").disabled = !on;
+      $("speak").disabled = !on;
+      $("question").disabled = !on;
+      $("status").textContent = on ? "Подключено" : "Не подключено";
+    }
+
+    function connect() {
+      const session = $("session").value.trim() || "demo";
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/ws/${encodeURIComponent(session)}`);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          type: "join",
+          participant_id: $("pid").value.trim() || "user1",
+          name: $("name").value.trim() || "User",
+          language: $("lang").value,
+          role: $("role").value,
+        }));
+        setConnected(true);
+      };
+      ws.onmessage = (ev) => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type === "translation") {
+          log(msg.text, `→ ${msg.to} (${msg.target_lang}) · оригинал: ${msg.original}`);
+        } else if (msg.type === "error") {
+          log(msg.message, "ошибка");
+        } else if (msg.type === "joined") {
+          log(`Вы вошли как ${msg.participant_id}`, "система");
+        }
+      };
+      ws.onclose = () => { setConnected(false); log("Соединение закрыто", "система"); };
+      ws.onerror = () => { log("Ошибка WebSocket", "система"); };
+    }
+
+    function disconnect() {
+      if (ws) { ws.close(); ws = null; }
+    }
+
+    function send(kind) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const text = $("text").value.trim();
+      if (!text) return;
+      ws.send(JSON.stringify({
+        type: kind,
+        participant_id: $("pid").value.trim() || "user1",
+        text,
+        source_lang: $("src").value,
+      }));
+      $("text").value = "";
+    }
+
+    $("connect").addEventListener("click", connect);
+    $("disconnect").addEventListener("click", disconnect);
+    $("speak").addEventListener("click", () => send("speak"));
+    $("question").addEventListener("click", () => send("question"));
+    $("text").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); send("speak"); }
+    });
+  </script>
+</body>
+</html>
