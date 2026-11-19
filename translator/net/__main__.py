@@ -36,8 +36,13 @@ def build_app(cfg: Config | None = None):
         return HistoryStore(cfg.history_db_path)
 
     def describer_factory() -> ObjectDescriber:
+        def ocr_factory(source_lang: str) -> OCR:
+            # source_lang приходит из формы как код Tesseract (eng/rus/...).
+            # Если пусто — используем английский по умолчанию.
+            return OCR(lang=source_lang or "eng")
+
         return ObjectDescriber(
-            ocr=OCR(lang="eng"),
+            ocr_factory=ocr_factory,
             translator=translator_factory(),
         )
 

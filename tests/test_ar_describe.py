@@ -109,3 +109,30 @@ def test_describe_invalid_min_confidence():
         ObjectDescriber(ocr=_FakeOCR([]), translator=_FakeTranslator(), min_confidence=-1)
     with pytest.raises(ValueError):
         ObjectDescriber(ocr=_FakeOCR([]), translator=_FakeTranslator(), min_confidence=101)
+
+
+def test_describe_uses_ocr_factory_with_source_lang():
+    created: list[str] = []
+
+    def ocr_factory(lang: str) -> _FakeOCR:
+        created.append(lang)
+        return _FakeOCR([_block("Hallo")])
+
+    describer = ObjectDescriber(
+        ocr_factory=ocr_factory,
+        translator=_FakeTranslator(),
+    )
+    result = describer.describe(_frame(), target_lang="ru", source_lang="deu")
+
+    assert created == ["deu"]
+    assert result.blocks[0].original_text == "Hallo"
+
+
+def test_describe_requires_ocr_or_factory():
+    with pytest.raises(ValueError):
+        ObjectDescriber(translator=_FakeTranslator())
+
+
+def test_describe_requires_translator():
+    with pytest.raises(ValueError):
+        ObjectDescriber(ocr=_FakeOCR([]))

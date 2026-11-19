@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Protocol, Sequence
+from typing import Callable, Optional, Protocol, Sequence
 
 from ..translate.base import Translator
 from .ocr import OCRBlock
@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 class _Recognizer(Protocol):
     def recognize(self, frame) -> list[OCRBlock]:  # noqa: ANN001
         ...
+
+
+RecognizerFactory = Callable[[str], _Recognizer]
 
 
 class DescribeError(RuntimeError):
@@ -68,15 +71,27 @@ class ObjectDescriber:
 
     def __init__(
         self,
-        ocr: _Recognizer,
-        translator: Translator,
+        ocr: Optional[_Recognizer] = None,
+        translator: Optional[Translator] = None,
         min_confidence: float = 0.0,
+        ocr_factory: Optional[RecognizerFactory] = None,
     ) -> None:
         if not (0.0 <= min_confidence <= 100.0):
             raise ValueError("min_confidence должен быть в диапазоне [0, 100]")
+        if ocr is None and ocr_factory is None:
+            raise ValueError("Нужен либо ocr, либо ocr_factory")
+        if translator is None:
+            raise ValueError("translator обязателен")
         self.ocr = ocr
+        self.ocr_factory = ocr_factory
         self.translator = translator
         self.min_confidence = min_confidence
+
+    def _get_recognizer(self, source_lang: Optional[str]) -> _Recognizer:
+        if self.ocr_factory is not None:
+            return self.ocr_factory(source_lang or "")
+        assert self.ocr is not None
+        return self.ocr
 
     def describe(
         self,
@@ -89,7 +104,8 @@ class ObjectDescriber:
         if frame is None:
             raise DescribeError("Пустой кадр")
 
-        blocks: Sequence[OCRBlock] = self.ocr.recognize(frame)
+        recognizer = self._get_recognizer(source_lang)
+        blocks: Sequence[OCRBlock] = recognizer.recognize(frame)
         blocks = [b for b in blocks if b.confidence >= self.min_confidence]
         if not blocks:
             logger.info("Описание: на кадре не найдено текста")
