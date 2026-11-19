@@ -11,8 +11,8 @@
 - [x] **Шаг 1.2.** STT через `faster-whisper` (`translator/stt/whisper_stt.py`) + тест с моком
 - [x] **Шаг 1.3.** Перевод через DeepSeek API (`translator/translate/deepseek.py`) + тест с моком httpx
 - [x] **Шаг 1.4.** TTS через `edge-tts` (`translator/tts/edge_tts.py`) + тест
-- [ ] **Шаг 1.5.** CLI-пайплайн: запись → STT → перевод → TTS/текст
-- [ ] **Шаг 1.6.** История реплик в SQLite (`translator/history/store.py`) + тест
+- [x] **Шаг 1.5.** CLI-пайплайн: запись → STT → перевод → TTS/текст
+- [x] **Шаг 1.6.** История реплик в SQLite (`translator/history/store.py`) + тест
 
 ## Этап 2. Групповой режим
 - [ ] WebSocket-сервер на FastAPI (`translator/net/server.py`)
