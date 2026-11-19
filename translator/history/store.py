@@ -22,9 +22,12 @@ CREATE TABLE IF NOT EXISTS history (
     translated_text TEXT NOT NULL,
     source_lang TEXT,
     target_lang TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    session_id TEXT
 );
 """
+
+_INDEX = "CREATE INDEX IF NOT EXISTS idx_history_session ON history(session_id, id DESC);"
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,7 @@ class HistoryEntry:
     source_lang: Optional[str]
     target_lang: str
     created_at: str
+    session_id: Optional[str] = None
 
 
 class HistoryStore:
@@ -58,8 +62,20 @@ class HistoryStore:
         self._conn = sqlite3.connect(str(self.db_path))
         self._conn.row_factory = sqlite3.Row
         self._conn.execute(_SCHEMA)
+        self._migrate()
+        self._conn.execute(_INDEX)
         self._conn.commit()
         logger.info("История открыта: %s", self.db_path)
+
+    def _migrate(self) -> None:
+        """Идемпотентно добавить колонку session_id в старые БД."""
+        cols = {
+            row["name"]
+            for row in self._conn.execute("PRAGMA table_info(history)").fetchall()
+        }
+        if "session_id" not in cols:
+            self._conn.execute("ALTER TABLE history ADD COLUMN session_id TEXT")
+            logger.info("Миграция: добавлена колонка session_id")
 
     def add(
         self,
@@ -69,6 +85,7 @@ class HistoryStore:
         target_lang: str,
         source_lang: Optional[str] = None,
         created_at: Optional[datetime] = None,
+        session_id: Optional[str] = None,
     ) -> int:
         """Добавить запись. Возвращает id."""
         if not author:
@@ -79,23 +96,39 @@ class HistoryStore:
         ts = (created_at or datetime.now(timezone.utc)).isoformat()
         cur = self._conn.execute(
             "INSERT INTO history "
-            "(author, original_text, translated_text, source_lang, target_lang, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (author, original_text, translated_text, source_lang, target_lang, ts),
+            "(author, original_text, translated_text, source_lang, target_lang, "
+            "created_at, session_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (author, original_text, translated_text, source_lang, target_lang, ts, session_id),
         )
         self._conn.commit()
         return int(cur.lastrowid)
 
-    def list_recent(self, limit: int = 50) -> list[HistoryEntry]:
-        """Вернуть последние записи (сначала новые)."""
+    def list_recent(
+        self,
+        limit: int = 50,
+        session_id: Optional[str] = None,
+    ) -> list[HistoryEntry]:
+        """Вернуть последние записи (сначала новые).
+
+        Если задан `session_id` — только записи этой сессии.
+        """
         if limit <= 0:
             return []
-        rows = self._conn.execute(
-            "SELECT id, author, original_text, translated_text, "
-            "source_lang, target_lang, created_at "
-            "FROM history ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        if session_id is None:
+            rows = self._conn.execute(
+                "SELECT id, author, original_text, translated_text, "
+                "source_lang, target_lang, created_at, session_id "
+                "FROM history ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT id, author, original_text, translated_text, "
+                "source_lang, target_lang, created_at, session_id "
+                "FROM history WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+                (session_id, limit),
+            ).fetchall()
         return [
             HistoryEntry(
                 id=row["id"],
@@ -105,6 +138,7 @@ class HistoryStore:
                 source_lang=row["source_lang"],
                 target_lang=row["target_lang"],
                 created_at=row["created_at"],
+                session_id=row["session_id"],
             )
             for row in rows
         ]

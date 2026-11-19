@@ -110,6 +110,7 @@ def create_app(
         translated_text: str,
         source_lang: Optional[str],
         target_lang: str,
+        session_id: str,
     ) -> None:
         if history_factory is None:
             return
@@ -121,6 +122,7 @@ def create_app(
                     translated_text=translated_text,
                     source_lang=source_lang,
                     target_lang=target_lang,
+                    session_id=session_id,
                 )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Не удалось записать историю: %s", exc)
@@ -185,6 +187,7 @@ def create_app(
                                 translated_text=result.text,
                                 source_lang=source_lang,
                                 target_lang=target_lang,
+                                session_id=session_id,
                             )
                             await registry.send_to(
                                 session_id,
@@ -314,7 +317,7 @@ def create_app(
         if history_factory is None:
             return {"session_id": session_id, "entries": []}
         with history_factory() as store:
-            entries = store.list_recent(limit=limit)
+            entries = store.list_recent(limit=limit, session_id=session_id)
         return {
             "session_id": session_id,
             "entries": [
@@ -326,6 +329,7 @@ def create_app(
                     "source_lang": e.source_lang,
                     "target_lang": e.target_lang,
                     "created_at": e.created_at,
+                    "session_id": e.session_id,
                 }
                 for e in entries
             ],

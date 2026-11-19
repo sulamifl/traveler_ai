@@ -24,6 +24,42 @@ pip install -e ".[stt,translate,tts,net,ar,dev]"
 - macOS: `brew install tesseract tesseract-lang`
 - Linux: `sudo apt install tesseract-ocr tesseract-ocr-all`
 
+### Языковые пакеты Tesseract
+
+Tesseract распознаёт только те языки, для которых установлены пакеты.
+Коды языков совпадают с ISO 639-2 (три буквы) и используются в UI
+(`source_lang` на странице `/ar`).
+
+| Язык | Код | Пакет (Debian/Ubuntu) |
+|---|---|---|
+| English | `eng` | `tesseract-ocr-eng` |
+| Русский | `rus` | `tesseract-ocr-rus` |
+| Deutsch | `deu` | `tesseract-ocr-deu` |
+| Français | `fra` | `tesseract-ocr-fra` |
+| Español | `spa` | `tesseract-ocr-spa` |
+| 中文 (упрощ.) | `chi_sim` | `tesseract-ocr-chi-sim` |
+| 日本語 | `jpn` | `tesseract-ocr-jpn` |
+
+Установка нужных языков (пример):
+
+```bash
+# Linux
+sudo apt install tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-deu
+
+# macOS (все языки сразу)
+brew install tesseract-lang
+```
+
+Проверить установленные языки:
+
+```bash
+tesseract --list-langs
+```
+
+Если нужного языка нет в списке — OCR вернёт пустой результат
+или ошибку. Выбирайте в UI (`/ar` → «Исходный (OCR)») только те языки,
+которые установлены.
+
 ## Конфигурация
 
 Все настройки — через переменные окружения (см. `translator/config.py`):
@@ -56,6 +92,34 @@ python -m translator.net --host 0.0.0.0 --port 8000
 
 - `http://127.0.0.1:8000/` — групповой чат
 - `http://127.0.0.1:8000/ar` — AR-режим (камера браузера)
+
+Для разработки удобно запускать с авто-перезагрузкой при изменении кода:
+
+```bash
+uvicorn translator.net.__main__:build_app --factory --reload --host 127.0.0.1 --port 8000
+```
+
+Флаг `--reload` перезапускает сервер при правках Python-файлов.
+Изменения в `translator/net/static/*` подхватываются браузером после
+обычного обновления страницы (Ctrl/Cmd+R).
+
+## PWA (установка как приложение)
+
+Веб-UI можно установить на телефон или десктоп как обычное приложение —
+с иконкой на домашнем экране и офлайн-оболочкой.
+
+- **Android / Chrome:** открыть `http://<host>:8000/` → меню «⋮» →
+  «Установить приложение» / «Добавить на главный экран».
+- **iOS / Safari:** открыть `http://<host>:8000/` → «Поделиться» →
+  «На экран Домой».
+- **Desktop / Chrome / Edge:** иконка установки в адресной строке.
+
+Что кэшируется: HTML-оболочка (`/`, `/ar`), `styles.css`, `icon.svg`,
+`manifest.webmanifest`. Service worker (`translator/net/static/sw.js`)
+не кэширует WebSocket, `/stt` и `/ar/frame` — они всегда идут в сеть.
+
+Офлайн работает только оболочка (интерфейс). Перевод, STT и OCR требуют
+сети и запущенного сервера.
 
 ## Тесты
 

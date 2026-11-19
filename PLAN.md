@@ -34,7 +34,7 @@
       (`translator/net/static/ar.html`, `POST /ar/frame`, `GET /ar`) + тест
 - [x] **Шаг 4.3.** Редизайн UI: тёмная тема, стеклянные панели, нижняя навигация
       (`translator/net/static/styles.css`) — минимализм 2026
-- [ ] (вне MVP) Мобильный клиент (React Native / Flutter) для AR с камерой телефона
+- [ ] (вне MVP, backlog) Мобильный клиент (React Native / Flutter) для AR с камерой телефона
 
 ## Этап 5. Сборка и документация
 - [x] **Шаг 5.1.** Точка входа сервера `python -m translator.net` (`translator/net/__main__.py`)
@@ -42,13 +42,13 @@
 
 ## Этап 6. Полировка
 - [x] **Шаг 6.1.** Прокинуть `source_lang` в OCR (`ObjectDescriber(ocr_factory=...)`) + тест
-- [ ] **Шаг 6.2.** `session_id` в `HistoryStore` + фильтрация истории по сессии
+- [x] **Шаг 6.2.** `session_id` в `HistoryStore` + фильтрация истории по сессии
 - [x] **Шаг 6.3.** UI-полировка: тосты, анимации, safe-area (iPhone), тач-таргеты 44px,
       `prefers-reduced-motion`, iOS-фиксы (`-webkit-`, `font-size: 16px`)
 - [x] **Шаг 6.4.** Микрофон в браузере: `MediaRecorder` → `POST /stt` → автозаполнение
       поля реплики; пульсирующий индикатор записи (`mic-btn.recording`)
 - [x] **Шаг 6.5.** PWA: `manifest.webmanifest`, `sw.js`, `icon.svg`, регистрация SW
-- [ ] **Шаг 6.6.** README: Tesseract-языки, `--reload`, PWA
+- [x] **Шаг 6.6.** README: Tesseract-языки, `--reload`, PWA
 
 ## Правила
 - Один шаг = одна маленькая функция + тест.

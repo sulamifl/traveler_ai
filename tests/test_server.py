@@ -129,6 +129,53 @@ def test_history_records_author_and_time(tmp_path):
     assert entry["created_at"]
 
 
+def test_history_filtered_by_session(tmp_path):
+    from translator.history.store import HistoryStore
+
+    db_path = tmp_path / "history.db"
+
+    def history_factory() -> HistoryStore:
+        return HistoryStore(db_path)
+
+    app = create_app(
+        translator_factory=lambda: _FakeTranslator(),
+        history_factory=history_factory,
+    )
+    client = TestClient(app)
+
+    def _speak(session_id: str, text: str) -> None:
+        with client.websocket_connect(f"/ws/{session_id}") as ws:
+            ws.send_json(
+                {"type": "join", "participant_id": "alice", "name": "Alice",
+                 "language": "ru", "role": "speaker"}
+            )
+            ws.receive_json()
+            ws.send_json(
+                {"type": "join", "participant_id": "bob", "name": "Bob",
+                 "language": "en"}
+            )
+            ws.receive_json()
+            ws.send_json(
+                {"type": "speak", "participant_id": "alice",
+                 "text": text, "source_lang": "ru"}
+            )
+            ws.receive_json()
+
+    _speak("s1", "Привет")
+    _speak("s2", "Пока")
+
+    r1 = client.get("/sessions/s1/history").json()
+    r2 = client.get("/sessions/s2/history").json()
+
+    assert len(r1["entries"]) == 1
+    assert r1["entries"][0]["original_text"] == "Привет"
+    assert r1["entries"][0]["session_id"] == "s1"
+
+    assert len(r2["entries"]) == 1
+    assert r2["entries"][0]["original_text"] == "Пока"
+    assert r2["entries"][0]["session_id"] == "s2"
+
+
 def test_index_page_served():
     client = _client()
     resp = client.get("/")
