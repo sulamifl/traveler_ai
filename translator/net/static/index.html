@@ -70,6 +70,10 @@
 
     <section class="card">
       <h2 class="card-title">Реплика</h2>
+      <div id="activity" class="activity" hidden>
+        <span class="activity-dot"></span>
+        <span id="activity-text">Готово</span>
+      </div>
       <div class="field">
         <textarea id="text" rows="2" placeholder="Введите текст или нажмите микрофон..."></textarea>
       </div>
@@ -136,6 +140,26 @@
       }, 3200);
     }
 
+    function setActivity(text, kind) {
+      const el = $("activity");
+      const label = $("activity-text");
+      if (!text) {
+        el.hidden = true;
+        el.classList.remove("busy", "done", "error");
+        return;
+      }
+      el.hidden = false;
+      el.classList.remove("busy", "done", "error");
+      if (kind) el.classList.add(kind);
+      label.textContent = text;
+    }
+
+    function setBusy(btn, busy) {
+      if (!btn) return;
+      btn.classList.toggle("btn-loading", !!busy);
+      btn.disabled = !!busy;
+    }
+
     async function startRecording() {
       if (!navigator.mediaDevices || !window.MediaRecorder) {
         toast("Браузер не поддерживает запись с микрофона", "error");
@@ -159,6 +183,7 @@
 
       $("mic").classList.add("recording");
       $("rec-status").style.display = "block";
+      setActivity("Слушаю…", "busy");
     }
 
     function stopRecording() {
@@ -171,6 +196,7 @@
       }
       $("mic").classList.remove("recording");
       $("rec-status").style.display = "none";
+      if (!mediaChunks.length) setActivity(null);
     }
 
     async function sendAudio() {
@@ -183,7 +209,7 @@
       const srcLang = $("src").value;
       if (srcLang) form.append("language", srcLang);
 
-      toast("Распознаём речь…");
+      setActivity("Распознаю речь…", "busy");
       try {
         const resp = await fetch("/stt", { method: "POST", body: form });
         if (!resp.ok) {
@@ -194,11 +220,17 @@
         if (data.text) {
           $("text").value = data.text;
           toast("Распознано: " + data.text.slice(0, 60), "success");
+          setActivity("Готово", "done");
+          setTimeout(() => setActivity(null), 1500);
         } else {
           toast("Речь не распознана", "error");
+          setActivity("Речь не распознана", "error");
+          setTimeout(() => setActivity(null), 2000);
         }
       } catch (err) {
         toast("Ошибка STT: " + err.message, "error");
+        setActivity("Ошибка распознавания", "error");
+        setTimeout(() => setActivity(null), 2500);
       }
     }
 
@@ -251,30 +283,45 @@
           role: $("role").value,
         }));
         setConnected(true);
+        toast("Подключено к сессии " + session, "success");
       };
       ws.onmessage = (ev) => {
         let msg;
         try { msg = JSON.parse(ev.data); } catch { return; }
         if (msg.type === "translation") {
           log(msg.text, `→ ${msg.to} · ${msg.target_lang} · оригинал: ${msg.original}`);
+          setActivity("Перевод получен", "done");
+          setTimeout(() => setActivity(null), 1200);
         } else if (msg.type === "error") {
           log(msg.message, "ошибка", "error");
+          setActivity("Ошибка: " + msg.message, "error");
+          setTimeout(() => setActivity(null), 2500);
         } else if (msg.type === "joined") {
           log(`Вы вошли как ${msg.participant_id}`, "система", "system");
         }
       };
-      ws.onclose = () => { setConnected(false); log("Соединение закрыто", "система", "system"); };
+      ws.onclose = () => {
+        setConnected(false);
+        log("Соединение закрыто", "система", "system");
+        if (mediaRecorder && mediaRecorder.state === "recording") stopRecording();
+        setActivity(null);
+      };
       ws.onerror = () => { log("Ошибка WebSocket", "система", "error"); };
     }
 
     function disconnect() {
+      if (mediaRecorder && mediaRecorder.state === "recording") stopRecording();
       if (ws) { ws.close(); ws = null; }
+      setActivity(null);
     }
 
     function send(kind) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       const text = $("text").value.trim();
       if (!text) return;
+      const btn = kind === "question" ? $("question") : $("speak");
+      setBusy(btn, true);
+      setActivity(kind === "question" ? "Отправляю вопрос…" : "Перевожу…", "busy");
       ws.send(JSON.stringify({
         type: kind,
         participant_id: $("pid").value.trim() || "user1",
@@ -282,6 +329,11 @@
         source_lang: $("src").value,
       }));
       $("text").value = "";
+      setTimeout(() => {
+        setBusy(btn, false);
+        setActivity("Готово", "done");
+        setTimeout(() => setActivity(null), 1200);
+      }, 900);
     }
 
     $("connect").addEventListener("click", connect);

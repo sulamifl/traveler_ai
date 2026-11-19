@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
+  <div class="toast-stack" id="toasts"></div>
   <header class="app-header">
     <div class="brand">
       <span class="brand-dot"></span>
@@ -34,6 +35,10 @@
 
     <section class="card">
       <h2 class="card-title">Распознавание</h2>
+      <div id="activity" class="activity" hidden>
+        <span class="activity-dot"></span>
+        <span id="activity-text">Готово</span>
+      </div>
       <div class="grid">
         <div class="field">
           <label for="target">Перевести на</label>
@@ -98,6 +103,39 @@
       $("status").classList.toggle("online", !!online);
     }
 
+    function toast(text, kind) {
+      const stack = $("toasts");
+      const el = document.createElement("div");
+      el.className = "toast" + (kind ? " " + kind : "");
+      el.textContent = text;
+      stack.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(-8px)";
+        setTimeout(() => el.remove(), 250);
+      }, 3200);
+    }
+
+    function setActivity(text, kind) {
+      const el = $("activity");
+      const label = $("activity-text");
+      if (!text) {
+        el.hidden = true;
+        el.classList.remove("busy", "done", "error");
+        return;
+      }
+      el.hidden = false;
+      el.classList.remove("busy", "done", "error");
+      if (kind) el.classList.add(kind);
+      label.textContent = text;
+    }
+
+    function setBusy(btn, busy) {
+      if (!btn) return;
+      btn.classList.toggle("btn-loading", !!busy);
+      btn.disabled = !!busy;
+    }
+
     function log(text, meta, kind) {
       const logEl = $("log");
       const empty = logEl.querySelector(".empty");
@@ -130,8 +168,13 @@
         $("stop").disabled = false;
         $("scan").disabled = false;
         $("auto").disabled = false;
+        toast("Камера включена", "success");
+        setActivity("Слушаю камеру…", "busy");
       } catch (err) {
         log("Не удалось открыть камеру: " + err.message, "ошибка", "error");
+        toast("Не удалось открыть камеру: " + err.message, "error");
+        setActivity("Камера недоступна", "error");
+        setTimeout(() => setActivity(null), 2500);
       }
     }
 
@@ -148,6 +191,8 @@
       $("stop").disabled = true;
       $("scan").disabled = true;
       $("auto").disabled = true;
+      $("auto").classList.remove("active");
+      setActivity(null);
     }
 
     function captureFrame() {
@@ -185,6 +230,9 @@
 
     async function scan() {
       if (!stream) return;
+      const scanBtn = $("scan");
+      setBusy(scanBtn, true);
+      setActivity("Распознаю текст…", "busy");
       const tmp = captureFrame();
       const blob = await new Promise((res) => tmp.toBlob(res, "image/jpeg", 0.85));
       const form = new FormData();
@@ -193,6 +241,7 @@
       form.append("source_lang", $("source").value);
 
       try {
+        setActivity("Перевожу…", "busy");
         const resp = await fetch("/ar/frame", { method: "POST", body: form });
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({}));
@@ -203,6 +252,8 @@
         if (blocks.length === 0) {
           log("Текст не найден", "OCR", "system");
           ctx.clearRect(0, 0, overlay.width, overlay.height);
+          setActivity("Текст не найден", "error");
+          setTimeout(() => setActivity(null), 1800);
           return;
         }
         const scaleX = overlay.width / tmp.width;
@@ -211,8 +262,15 @@
         for (const b of blocks) {
           log(b.translated_text, `оригинал: ${b.original_text}`, "");
         }
+        setActivity(`Готово · ${blocks.length} блок(ов)`, "done");
+        setTimeout(() => setActivity(null), 1500);
       } catch (err) {
         log("Ошибка распознавания: " + err.message, "ошибка", "error");
+        toast("Ошибка распознавания: " + err.message, "error");
+        setActivity("Ошибка распознавания", "error");
+        setTimeout(() => setActivity(null), 2500);
+      } finally {
+        setBusy(scanBtn, false);
       }
     }
 
@@ -221,9 +279,13 @@
         clearInterval(autoTimer);
         autoTimer = null;
         $("auto").textContent = "Авто";
+        $("auto").classList.remove("active");
+        setActivity(null);
       } else {
         autoTimer = setInterval(scan, 2500);
         $("auto").textContent = "Стоп";
+        $("auto").classList.add("active");
+        toast("Авто-режим включён", "success");
       }
     }
 
