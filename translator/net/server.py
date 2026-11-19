@@ -19,7 +19,7 @@ import logging
 from pathlib import Path
 from typing import Callable, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -69,17 +69,20 @@ class SessionRegistry:
 def create_app(
     translator_factory: Optional[TranslatorFactory] = None,
     history_factory: Optional[HistoryFactory] = None,
+    describer_factory: Optional[Callable[[], object]] = None,
 ) -> FastAPI:
     """Создать FastAPI-приложение.
 
     `translator_factory` позволяет подменить переводчик в тестах.
     `history_factory` — фабрика `HistoryStore`; если задана, все реплики
     и вопросы сохраняются с автором и временем.
+    `describer_factory` — фабрика `ObjectDescriber` для AR-эндпоинта.
     """
     app = FastAPI(title="Translator AR — Group mode")
     registry = SessionRegistry()
     app.state.registry = registry
     app.state.history_factory = history_factory
+    app.state.describer_factory = describer_factory
 
     if _STATIC_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
@@ -87,6 +90,10 @@ def create_app(
         @app.get("/", include_in_schema=False)
         def index() -> FileResponse:
             return FileResponse(_STATIC_DIR / "index.html")
+
+        @app.get("/ar", include_in_schema=False)
+        def ar_page() -> FileResponse:
+            return FileResponse(_STATIC_DIR / "ar.html")
 
     def _get_translator() -> Translator:
         if translator_factory is None:
@@ -203,6 +210,55 @@ def create_app(
                     session.remove_participant(participant_id)
                 except SessionError:
                     pass
+
+    @app.post("/ar/frame")
+    async def ar_frame(
+        file: UploadFile = File(...),
+        target_lang: str = Form(...),
+        source_lang: Optional[str] = Form(None),
+    ) -> dict:
+        """Принять кадр, распознать текст и вернуть переводы с bbox."""
+        if describer_factory is None:
+            raise HTTPException(status_code=503, detail="AR-режим не настроен")
+        if not target_lang:
+            raise HTTPException(status_code=400, detail="Не указан target_lang")
+
+        raw = await file.read()
+        if not raw:
+            raise HTTPException(status_code=400, detail="Пустой кадр")
+
+        try:
+            import numpy as np
+            from PIL import Image
+            import io
+
+            image = Image.open(io.BytesIO(raw)).convert("RGB")
+            frame = np.array(image)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=400, detail=f"Не удалось прочитать кадр: {exc}")
+
+        describer = describer_factory()
+        try:
+            result = describer.describe(
+                frame, target_lang=target_lang, source_lang=source_lang
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Ошибка AR-описания: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc))
+
+        return {
+            "target_lang": result.target_lang,
+            "source_lang": result.source_lang,
+            "blocks": [
+                {
+                    "original_text": b.original_text,
+                    "translated_text": b.translated_text,
+                    "bbox": list(b.bbox),
+                    "confidence": b.confidence,
+                }
+                for b in result.blocks
+            ],
+        }
 
     @app.get("/sessions/{session_id}/history")
     def get_history(session_id: str, limit: int = 50) -> dict:

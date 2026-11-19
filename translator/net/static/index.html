@@ -2,74 +2,117 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" />
   <title>Translator AR — Групповой режим</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; max-width: 900px; margin-inline: auto; }
-    h1 { font-size: 1.25rem; margin: 0 0 1rem; }
-    .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: .75rem; }
-    label { font-size: .9rem; }
-    input, select, button { font: inherit; padding: .4rem .6rem; border-radius: 6px; border: 1px solid #888; }
-    button { cursor: pointer; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    #log { border: 1px solid #888; border-radius: 6px; padding: .5rem; min-height: 200px; max-height: 400px; overflow-y: auto; }
-    .entry { padding: .35rem 0; border-bottom: 1px dashed #555; }
-    .entry:last-child { border-bottom: none; }
-    .meta { font-size: .8rem; opacity: .7; }
-    .error { color: #c33; }
-    #status { font-size: .85rem; opacity: .8; }
-  </style>
+  <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <h1>Синхронный переводчик — групповой режим</h1>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span>Translator AR</span>
+    </div>
+    <div id="status" class="status-pill">
+      <span class="dot"></span>
+      <span id="status-text">Не подключено</span>
+    </div>
+  </header>
 
-  <div class="row">
-    <label>Сессия: <input id="session" value="demo" size="10" /></label>
-    <label>ID: <input id="pid" value="user1" size="8" /></label>
-    <label>Имя: <input id="name" value="User" size="10" /></label>
-    <label>Язык: <select id="lang">
-      <option value="ru">ru</option>
-      <option value="en" selected>en</option>
-      <option value="de">de</option>
-      <option value="fr">fr</option>
-      <option value="es">es</option>
-      <option value="zh">zh</option>
-      <option value="ja">ja</option>
-    </select></label>
-    <label>Роль: <select id="role">
-      <option value="listener" selected>listener</option>
-      <option value="speaker">speaker</option>
-    </select></label>
-    <button id="connect">Подключиться</button>
-    <button id="disconnect" disabled>Отключиться</button>
-  </div>
+  <main>
+    <section class="card">
+      <h2 class="card-title">Подключение</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="session">Сессия</label>
+          <input id="session" value="demo" />
+        </div>
+        <div class="field">
+          <label for="pid">ID</label>
+          <input id="pid" value="user1" />
+        </div>
+        <div class="field">
+          <label for="name">Имя</label>
+          <input id="name" value="User" />
+        </div>
+        <div class="field">
+          <label for="lang">Мой язык</label>
+          <select id="lang">
+            <option value="ru">Русский</option>
+            <option value="en" selected>English</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="role">Роль</label>
+          <select id="role">
+            <option value="listener" selected>Слушатель</option>
+            <option value="speaker">Говорящий</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="connect" class="primary grow">Подключиться</button>
+        <button id="disconnect" class="ghost" disabled>Отключиться</button>
+      </div>
+    </section>
 
-  <div class="row">
-    <input id="text" placeholder="Введите текст реплики..." style="flex:1; min-width: 200px;" />
-    <label>Исходный: <select id="src">
-      <option value="ru">ru</option>
-      <option value="en" selected>en</option>
-      <option value="de">de</option>
-      <option value="fr">fr</option>
-      <option value="es">es</option>
-      <option value="zh">zh</option>
-      <option value="ja">ja</option>
-    </select></label>
-    <button id="speak" disabled>Сказать</button>
-    <button id="question" disabled>Вопрос</button>
-  </div>
+    <section class="card">
+      <h2 class="card-title">Реплика</h2>
+      <div class="field">
+        <textarea id="text" rows="2" placeholder="Введите текст реплики..."></textarea>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <div class="field grow">
+          <label for="src">Исходный язык</label>
+          <select id="src">
+            <option value="ru">Русский</option>
+            <option value="en" selected>English</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
+        <button id="speak" class="primary" disabled>Сказать</button>
+        <button id="question" class="ghost" disabled>Вопрос</button>
+      </div>
+    </section>
 
-  <div id="status">Не подключено</div>
-  <div id="log"></div>
+    <section class="card">
+      <h2 class="card-title">Лента переводов</h2>
+      <div id="log">
+        <div class="empty">Пока пусто. Подключитесь и отправьте реплику.</div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <a class="nav-item active" href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Чат</span>
+    </a>
+    <a class="nav-item" href="/ar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>AR</span>
+    </a>
+  </nav>
 
   <script>
     const $ = (id) => document.getElementById(id);
     let ws = null;
 
-    function log(text, meta) {
+    function log(text, meta, kind) {
+      const logEl = $("log");
+      const empty = logEl.querySelector(".empty");
+      if (empty) empty.remove();
       const div = document.createElement("div");
-      div.className = "entry";
+      div.className = "entry" + (kind ? " " + kind : "");
       if (meta) {
         const m = document.createElement("div");
         m.className = "meta";
@@ -77,9 +120,10 @@
         div.appendChild(m);
       }
       const t = document.createElement("div");
+      t.className = "text";
       t.textContent = text;
       div.appendChild(t);
-      $("log").prepend(div);
+      logEl.prepend(div);
     }
 
     function setConnected(on) {
@@ -87,7 +131,8 @@
       $("disconnect").disabled = !on;
       $("speak").disabled = !on;
       $("question").disabled = !on;
-      $("status").textContent = on ? "Подключено" : "Не подключено";
+      $("status").classList.toggle("online", on);
+      $("status-text").textContent = on ? "Подключено" : "Не подключено";
     }
 
     function connect() {
@@ -108,15 +153,15 @@
         let msg;
         try { msg = JSON.parse(ev.data); } catch { return; }
         if (msg.type === "translation") {
-          log(msg.text, `→ ${msg.to} (${msg.target_lang}) · оригинал: ${msg.original}`);
+          log(msg.text, `→ ${msg.to} · ${msg.target_lang} · оригинал: ${msg.original}`);
         } else if (msg.type === "error") {
-          log(msg.message, "ошибка");
+          log(msg.message, "ошибка", "error");
         } else if (msg.type === "joined") {
-          log(`Вы вошли как ${msg.participant_id}`, "система");
+          log(`Вы вошли как ${msg.participant_id}`, "система", "system");
         }
       };
-      ws.onclose = () => { setConnected(false); log("Соединение закрыто", "система"); };
-      ws.onerror = () => { log("Ошибка WebSocket", "система"); };
+      ws.onclose = () => { setConnected(false); log("Соединение закрыто", "система", "system"); };
+      ws.onerror = () => { log("Ошибка WebSocket", "система", "error"); };
     }
 
     function disconnect() {
@@ -141,7 +186,7 @@
     $("speak").addEventListener("click", () => send("speak"));
     $("question").addEventListener("click", () => send("question"));
     $("text").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); send("speak"); }
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send("speak"); }
     });
   </script>
 </body>

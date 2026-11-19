@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" />
+  <title>Translator AR — AR-режим</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span>AR-режим</span>
+    </div>
+    <div id="status" class="status-pill">
+      <span class="dot"></span>
+      <span id="status-text">Камера выключена</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2 class="card-title">Камера</h2>
+      <div class="video-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="start" class="primary grow">Включить камеру</button>
+        <button id="stop" class="ghost" disabled>Выключить</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Распознавание</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="target">Перевести на</label>
+          <select id="target">
+            <option value="ru" selected>Русский</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="source">Исходный (OCR)</label>
+          <select id="source">
+            <option value="eng" selected>English</option>
+            <option value="rus">Русский</option>
+            <option value="deu">Deutsch</option>
+            <option value="fra">Français</option>
+            <option value="spa">Español</option>
+            <option value="chi_sim">中文</option>
+            <option value="jpn">日本語</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="scan" class="primary grow" disabled>Распознать кадр</button>
+        <button id="auto" class="ghost" disabled>Авто</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Результат</h2>
+      <div id="log">
+        <div class="empty">Наведите камеру на текст и нажмите «Распознать кадр».</div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <a class="nav-item" href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Чат</span>
+    </a>
+    <a class="nav-item active" href="/ar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>AR</span>
+    </a>
+  </nav>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const video = $("video");
+    const overlay = $("overlay");
+    const ctx = overlay.getContext("2d");
+    let stream = null;
+    let autoTimer = null;
+
+    function setStatus(text, online) {
+      $("status-text").textContent = text;
+      $("status").classList.toggle("online", !!online);
+    }
+
+    function log(text, meta, kind) {
+      const logEl = $("log");
+      const empty = logEl.querySelector(".empty");
+      if (empty) empty.remove();
+      const div = document.createElement("div");
+      div.className = "entry" + (kind ? " " + kind : "");
+      if (meta) {
+        const m = document.createElement("div");
+        m.className = "meta";
+        m.textContent = meta;
+        div.appendChild(m);
+      }
+      const t = document.createElement("div");
+      t.className = "text";
+      t.textContent = text;
+      div.appendChild(t);
+      logEl.prepend(div);
+    }
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false,
+        });
+        video.srcObject = stream;
+        await video.play();
+        setStatus("Камера включена", true);
+        $("start").disabled = true;
+        $("stop").disabled = false;
+        $("scan").disabled = false;
+        $("auto").disabled = false;
+      } catch (err) {
+        log("Не удалось открыть камеру: " + err.message, "ошибка", "error");
+      }
+    }
+
+    function stopCamera() {
+      if (autoTimer) { clearInterval(autoTimer); autoTimer = null; $("auto").textContent = "Авто"; }
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+      }
+      video.srcObject = null;
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      setStatus("Камера выключена", false);
+      $("start").disabled = false;
+      $("stop").disabled = true;
+      $("scan").disabled = true;
+      $("auto").disabled = true;
+    }
+
+    function captureFrame() {
+      const w = video.videoWidth || 640;
+      const h = video.videoHeight || 480;
+      const tmp = document.createElement("canvas");
+      tmp.width = w;
+      tmp.height = h;
+      tmp.getContext("2d").drawImage(video, 0, 0, w, h);
+      return tmp;
+    }
+
+    function drawOverlay(blocks, scaleX, scaleY) {
+      overlay.width = video.clientWidth;
+      overlay.height = video.clientHeight;
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      ctx.font = "600 14px -apple-system, system-ui, sans-serif";
+      ctx.textBaseline = "top";
+      for (const b of blocks) {
+        const [x, y, w, h] = b.bbox;
+        const sx = x * scaleX, sy = y * scaleY;
+        const sw = w * scaleX, sh = h * scaleY;
+        ctx.strokeStyle = "rgba(108, 140, 255, 0.95)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx, sy, sw, sh);
+        const label = b.translated_text || b.original_text;
+        const pad = 4;
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = "rgba(11, 13, 18, 0.85)";
+        ctx.fillRect(sx, sy - 22, tw + pad * 2, 20);
+        ctx.fillStyle = "#eef1f7";
+        ctx.fillText(label, sx + pad, sy - 20);
+      }
+    }
+
+    async function scan() {
+      if (!stream) return;
+      const tmp = captureFrame();
+      const blob = await new Promise((res) => tmp.toBlob(res, "image/jpeg", 0.85));
+      const form = new FormData();
+      form.append("file", blob, "frame.jpg");
+      form.append("target_lang", $("target").value);
+      form.append("source_lang", $("source").value);
+
+      try {
+        const resp = await fetch("/ar/frame", { method: "POST", body: form });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.detail || ("HTTP " + resp.status));
+        }
+        const data = await resp.json();
+        const blocks = data.blocks || [];
+        if (blocks.length === 0) {
+          log("Текст не найден", "OCR", "system");
+          ctx.clearRect(0, 0, overlay.width, overlay.height);
+          return;
+        }
+        const scaleX = overlay.width / tmp.width;
+        const scaleY = overlay.height / tmp.height;
+        drawOverlay(blocks, scaleX, scaleY);
+        for (const b of blocks) {
+          log(b.translated_text, `оригинал: ${b.original_text}`, "");
+        }
+      } catch (err) {
+        log("Ошибка распознавания: " + err.message, "ошибка", "error");
+      }
+    }
+
+    function toggleAuto() {
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+        $("auto").textContent = "Авто";
+      } else {
+        autoTimer = setInterval(scan, 2500);
+        $("auto").textContent = "Стоп";
+      }
+    }
+
+    $("start").addEventListener("click", startCamera);
+    $("stop").addEventListener("click", stopCamera);
+    $("scan").addEventListener("click", scan);
+    $("auto").addEventListener("click", toggleAuto);
+  </script>
+</body>
+</html>

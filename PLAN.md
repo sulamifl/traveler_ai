@@ -30,7 +30,10 @@
 ## Этап 4. UX/UI (после AR)
 - [x] **Шаг 4.1.** Веб-UI на FastAPI + HTML/JS поверх существующего WebSocket-сервера
       (`translator/net/static/index.html`, `GET /`, `/static`) + тест
-- [ ] **Шаг 4.2.** Страница AR-режима (камера браузера → кадр на сервер → overlay)
+- [x] **Шаг 4.2.** Страница AR-режима (камера браузера → кадр на сервер → overlay)
+      (`translator/net/static/ar.html`, `POST /ar/frame`, `GET /ar`) + тест
+- [x] **Шаг 4.3.** Редизайн UI: тёмная тема, стеклянные панели, нижняя навигация
+      (`translator/net/static/styles.css`) — минимализм 2026
 - [ ] (вне MVP) Мобильный клиент (React Native / Flutter) для AR с камерой телефона
 
 ## Правила

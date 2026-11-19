@@ -144,6 +144,81 @@ def test_static_index_available():
     assert "WebSocket" in resp.text
 
 
+def test_ar_page_served():
+    client = _client()
+    resp = client.get("/ar")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "AR-режим" in resp.text
+
+
+def test_ar_frame_returns_blocks():
+    import io
+
+    import numpy as np
+    from PIL import Image
+
+    from translator.ar.describe import DescribedBlock, DescribeResult
+
+    class _FakeDescriber:
+        def describe(self, frame, target_lang, source_lang=None):
+            return DescribeResult(
+                blocks=[
+                    DescribedBlock(
+                        original_text="Hello",
+                        translated_text="Привет",
+                        bbox=(1, 2, 3, 4),
+                        confidence=90.0,
+                    )
+                ],
+                source_lang=source_lang,
+                target_lang=target_lang,
+            )
+
+    app = create_app(
+        translator_factory=lambda: _FakeTranslator(),
+        describer_factory=lambda: _FakeDescriber(),
+    )
+    client = TestClient(app)
+
+    img = Image.fromarray(np.zeros((10, 10, 3), dtype=np.uint8))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    resp = client.post(
+        "/ar/frame",
+        files={"file": ("frame.jpg", buf, "image/jpeg")},
+        data={"target_lang": "ru", "source_lang": "eng"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["target_lang"] == "ru"
+    assert len(data["blocks"]) == 1
+    assert data["blocks"][0]["translated_text"] == "Привет"
+    assert data["blocks"][0]["bbox"] == [1, 2, 3, 4]
+
+
+def test_ar_frame_without_describer_returns_503():
+    client = _client()
+    import io
+
+    import numpy as np
+    from PIL import Image
+
+    img = Image.fromarray(np.zeros((4, 4, 3), dtype=np.uint8))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    resp = client.post(
+        "/ar/frame",
+        files={"file": ("frame.jpg", buf, "image/jpeg")},
+        data={"target_lang": "ru"},
+    )
+    assert resp.status_code == 503
+
+
 def test_join_duplicate_returns_error():
     client = _client()
     with client.websocket_connect("/ws/d") as ws:
