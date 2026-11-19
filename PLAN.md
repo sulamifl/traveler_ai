@@ -2,9 +2,9 @@
 
 ## Этап 0. Инфраструктура
 - [x] Создать `PLAN.md` и структуру пакетов
-- [ ] `pyproject.toml` с зависимостями (sounddevice, numpy, faster-whisper, httpx, edge-tts, fastapi, uvicorn, opencv-python, pytest)
-- [ ] `translator/config.py` — конфиг через env-переменные
-- [ ] `translator/logging_setup.py` — единая настройка логирования
+- [x] `pyproject.toml` с зависимостями (sounddevice, numpy, faster-whisper, httpx, edge-tts, fastapi, uvicorn, opencv-python, pytest)
+- [x] `translator/config.py` — конфиг через env-переменные
+- [x] `translator/logging_setup.py` — единая настройка логирования
 
 ## Этап 1. MVP: базовый перевод речи
 - [x] **Шаг 1.1.** Захват аудио с микрофона → WAV (`translator/audio/recorder.py`) + тест
@@ -22,7 +22,7 @@
 - [ ] История с авторством и временем
 
 ## Этап 3. AR-режим
-- [ ] Захват кадра с камеры (OpenCV)
+- [ ] Захват кадра с камеры (OpenCV) — `translator/ar/camera.py` + тест
 - [ ] Распознавание текста (OCR) и/или простых объектов
 - [ ] Поиск/описание объекта и перевод на язык пользователя
 - [ ] Вывод поверх кадра (overlay)
