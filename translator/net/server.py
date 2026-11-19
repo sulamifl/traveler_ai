@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 TranslatorFactory = Callable[[], Translator]
 HistoryFactory = Callable[[], HistoryStore]
+STTFactory = Callable[[], object]
 
 
 class SessionRegistry:
@@ -70,6 +71,7 @@ def create_app(
     translator_factory: Optional[TranslatorFactory] = None,
     history_factory: Optional[HistoryFactory] = None,
     describer_factory: Optional[Callable[[], object]] = None,
+    stt_factory: Optional[STTFactory] = None,
 ) -> FastAPI:
     """Создать FastAPI-приложение.
 
@@ -77,12 +79,14 @@ def create_app(
     `history_factory` — фабрика `HistoryStore`; если задана, все реплики
     и вопросы сохраняются с автором и временем.
     `describer_factory` — фабрика `ObjectDescriber` для AR-эндпоинта.
+    `stt_factory` — фабрика STT-движка для эндпоинта `/stt`.
     """
     app = FastAPI(title="Translator AR — Group mode")
     registry = SessionRegistry()
     app.state.registry = registry
     app.state.history_factory = history_factory
     app.state.describer_factory = describer_factory
+    app.state.stt_factory = stt_factory
 
     if _STATIC_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
@@ -210,6 +214,50 @@ def create_app(
                     session.remove_participant(participant_id)
                 except SessionError:
                     pass
+
+    @app.post("/stt")
+    async def stt_endpoint(
+        file: UploadFile = File(...),
+        language: Optional[str] = Form(None),
+    ) -> dict:
+        """Принять аудио с браузера, распознать речь и вернуть текст."""
+        if stt_factory is None:
+            raise HTTPException(status_code=503, detail="STT не настроен")
+
+        raw = await file.read()
+        if not raw:
+            raise HTTPException(status_code=400, detail="Пустой аудиофайл")
+
+        import tempfile
+        from pathlib import Path as _Path
+
+        suffix = ".webm"
+        if file.filename:
+            suffix = _Path(file.filename).suffix or suffix
+
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        try:
+            tmp.write(raw)
+            tmp.close()
+            stt = stt_factory()
+            result = stt.transcribe(tmp.name, language=language)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Ошибка STT: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc))
+        finally:
+            try:
+                _Path(tmp.name).unlink(missing_ok=True)
+            except Exception:  # noqa: BLE001
+                pass
+
+        return {
+            "text": result.text,
+            "language": result.language,
+            "segments": [
+                {"start": s.start, "end": s.end, "text": s.text}
+                for s in result.segments
+            ],
+        }
 
     @app.post("/ar/frame")
     async def ar_frame(

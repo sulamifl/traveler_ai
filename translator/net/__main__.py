@@ -14,6 +14,7 @@ from ..ar.ocr import OCR
 from ..config import Config
 from ..history.store import HistoryStore
 from ..logging_setup import setup_logging
+from ..stt.whisper_stt import WhisperTranscriber
 from ..translate.deepseek import DeepSeekTranslator
 from .server import create_app
 
@@ -46,10 +47,23 @@ def build_app(cfg: Config | None = None):
             translator=translator_factory(),
         )
 
+    _stt_singleton: dict[str, WhisperTranscriber] = {}
+
+    def stt_factory() -> WhisperTranscriber:
+        # Модель Whisper тяжёлая — держим один экземпляр на процесс.
+        if "stt" not in _stt_singleton:
+            _stt_singleton["stt"] = WhisperTranscriber(
+                model_size=cfg.whisper_model,
+                device=cfg.whisper_device,
+                compute_type=cfg.whisper_compute_type,
+            )
+        return _stt_singleton["stt"]
+
     return create_app(
         translator_factory=translator_factory,
         history_factory=history_factory,
         describer_factory=describer_factory,
+        stt_factory=stt_factory,
     )
 
 

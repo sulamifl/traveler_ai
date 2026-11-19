@@ -199,6 +199,44 @@ def test_ar_frame_returns_blocks():
     assert data["blocks"][0]["bbox"] == [1, 2, 3, 4]
 
 
+def test_stt_endpoint_returns_text():
+    from translator.stt.base import TranscriptionResult, TranscriptionSegment
+
+    class _FakeSTT:
+        def transcribe(self, audio_path, language=None):
+            return TranscriptionResult(
+                text="Привет мир",
+                language=language or "ru",
+                segments=[TranscriptionSegment(start=0.0, end=1.0, text="Привет мир")],
+            )
+
+    app = create_app(
+        translator_factory=lambda: _FakeTranslator(),
+        stt_factory=lambda: _FakeSTT(),
+    )
+    client = TestClient(app)
+
+    resp = client.post(
+        "/stt",
+        files={"file": ("speech.webm", b"\x00\x01\x02", "audio/webm")},
+        data={"language": "ru"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["text"] == "Привет мир"
+    assert data["language"] == "ru"
+    assert len(data["segments"]) == 1
+
+
+def test_stt_endpoint_without_factory_returns_503():
+    client = _client()
+    resp = client.post(
+        "/stt",
+        files={"file": ("speech.webm", b"\x00", "audio/webm")},
+    )
+    assert resp.status_code == 503
+
+
 def test_ar_frame_without_describer_returns_503():
     client = _client()
     import io

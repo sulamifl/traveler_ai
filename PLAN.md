@@ -43,9 +43,11 @@
 ## Этап 6. Полировка
 - [x] **Шаг 6.1.** Прокинуть `source_lang` в OCR (`ObjectDescriber(ocr_factory=...)`) + тест
 - [ ] **Шаг 6.2.** `session_id` в `HistoryStore` + фильтрация истории по сессии
-- [ ] **Шаг 6.3.** UI-полировка: скелетоны, тосты, анимации, пустые состояния, safe-area
-- [ ] **Шаг 6.4.** Микрофон в браузере (MediaRecorder → WAV → STT → перевод)
-- [ ] **Шаг 6.5.** PWA-манифест + иконки
+- [x] **Шаг 6.3.** UI-полировка: тосты, анимации, safe-area (iPhone), тач-таргеты 44px,
+      `prefers-reduced-motion`, iOS-фиксы (`-webkit-`, `font-size: 16px`)
+- [x] **Шаг 6.4.** Микрофон в браузере: `MediaRecorder` → `POST /stt` → автозаполнение
+      поля реплики; пульсирующий индикатор записи (`mic-btn.recording`)
+- [x] **Шаг 6.5.** PWA: `manifest.webmanifest`, `sw.js`, `icon.svg`, регистрация SW
 - [ ] **Шаг 6.6.** README: Tesseract-языки, `--reload`, PWA
 
 ## Правила

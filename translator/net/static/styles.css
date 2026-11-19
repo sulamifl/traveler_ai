@@ -39,7 +39,14 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding-bottom: 88px; /* место под нижнюю навигацию */
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+/* iOS: не даём Safari зумить при фокусе на input */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea { font-size: 16px; }
 }
 
 .app-header {
@@ -49,7 +56,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: calc(16px + env(safe-area-inset-top)) 20px 16px;
   background: linear-gradient(to bottom, rgba(11, 13, 18, 0.9), rgba(11, 13, 18, 0.6));
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
@@ -167,12 +174,16 @@ button {
   font-weight: 600;
   font-size: 15px;
   padding: 12px 18px;
+  min-height: 44px; /* Apple HIG: минимальный тач-таргет */
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--bg-elev-2);
   color: var(--text);
   cursor: pointer;
   transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
@@ -297,6 +308,142 @@ button.ghost {
 }
 
 .nav-item svg { width: 22px; height: 22px; }
+
+/* Кнопка-микрофон с индикатором записи */
+.mic-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(108, 140, 255, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.mic-btn:active:not(:disabled) { transform: scale(0.96); }
+.mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.mic-btn svg { width: 22px; height: 22px; }
+
+.mic-btn.recording {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: micPulse 1.4s ease-out infinite;
+}
+
+.mic-btn.recording::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  animation: micRing 1.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes micPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+  70%  { box-shadow: 0 0 0 18px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@keyframes micRing {
+  0%   { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+.recording-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.recording-badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Скелетон загрузки */
+.skeleton {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--bg-elev-2) 0%, rgba(255,255,255,0.14) 50%, var(--bg-elev-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Тосты */
+.toast-stack {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: min(92vw, 420px);
+}
+
+.toast {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(20, 24, 34, 0.95);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  animation: toastIn 0.25s ease;
+  pointer-events: auto;
+}
+
+.toast.error { border-color: rgba(248, 113, 113, 0.5); }
+.toast.success { border-color: rgba(52, 211, 153, 0.5); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
 
 /* AR-страница */
 .video-wrap {
