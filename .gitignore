@@ -1,0 +1,15 @@
+.aider*
+.env
+__pycache__/                                                                                                                 
+*.pyc                                                                                                                        
+*.pyo                                                                                                                        
+.pytest_cache/                                                                                                               
+*.egg-info/                                                                                                                  
+build/                                                                                                                       
+dist/                                                                                                                        
+.env                                                                                                                         
+history.db                                                                                                                   
+*.db                                                                                                                         
+*.mp3                                                                                                                        
+*.wav                                                                                                                        
+*.webm 

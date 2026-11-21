@@ -1,0 +1,23 @@
+Metadata-Version: 2.4
+Name: translator-ar
+Version: 0.1.0
+Summary: Синхронный переводчик с элементами дополненной реальности
+Requires-Python: >=3.11
+Requires-Dist: numpy>=1.26
+Provides-Extra: stt
+Requires-Dist: groq>=0.11; extra == "stt"
+Provides-Extra: translate
+Requires-Dist: httpx>=0.27; extra == "translate"
+Provides-Extra: tts
+Requires-Dist: edge-tts>=6.1; extra == "tts"
+Provides-Extra: net
+Requires-Dist: fastapi>=0.110; extra == "net"
+Requires-Dist: uvicorn[standard]>=0.29; extra == "net"
+Requires-Dist: websockets>=12; extra == "net"
+Requires-Dist: python-multipart>=0.0.9; extra == "net"
+Provides-Extra: ar
+Requires-Dist: opencv-python-headless>=4.9; extra == "ar"
+Requires-Dist: pytesseract>=0.3.10; extra == "ar"
+Requires-Dist: Pillow>=10.0; extra == "ar"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
