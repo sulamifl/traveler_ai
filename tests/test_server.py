@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from translator.net.server import create_app
@@ -273,6 +274,59 @@ def test_stt_endpoint_returns_text():
     assert data["text"] == "Привет мир"
     assert data["language"] == "ru"
     assert len(data["segments"]) == 1
+
+
+def test_groq_transcriber_returns_result(tmp_path):
+    from translator.stt.groq_stt import GroqTranscriber
+
+    class _FakeResponse:
+        text = "Привет мир"
+        language = "ru"
+        segments = [
+            {"start": 0.0, "end": 1.0, "text": "Привет мир"},
+        ]
+
+    class _FakeAudio:
+        def __init__(self):
+            self.calls = []
+
+        def transcriptions(self):
+            return self
+
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            return _FakeResponse()
+
+    class _FakeClient:
+        def __init__(self):
+            self.audio = _FakeAudio()
+
+    audio_file = tmp_path / "speech.webm"
+    audio_file.write_bytes(b"\x00\x01\x02")
+
+    client = _FakeClient()
+    stt = GroqTranscriber(api_key="test", client=client)
+    result = stt.transcribe(audio_file, language="ru")
+
+    assert result.text == "Привет мир"
+    assert result.language == "ru"
+    assert len(result.segments) == 1
+    assert result.segments[0].text == "Привет мир"
+
+
+def test_groq_transcriber_missing_file_raises(tmp_path):
+    from translator.stt.groq_stt import GroqSTTError, GroqTranscriber
+
+    stt = GroqTranscriber(api_key="test", client=object())
+    with pytest.raises(GroqSTTError):
+        stt.transcribe(tmp_path / "missing.webm")
+
+
+def test_groq_transcriber_requires_api_key():
+    from translator.stt.groq_stt import GroqTranscriber
+
+    with pytest.raises(ValueError):
+        GroqTranscriber()
 
 
 def test_stt_endpoint_without_factory_returns_503():

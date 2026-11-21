@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: translator-ar
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: whisper-large-v3-turbo
+      - key: LOG_LEVEL
+        value: INFO

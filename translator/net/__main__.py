@@ -14,7 +14,7 @@ from ..ar.ocr import OCR
 from ..config import Config
 from ..history.store import HistoryStore
 from ..logging_setup import setup_logging
-from ..stt.whisper_stt import WhisperTranscriber
+from ..stt.groq_stt import GroqTranscriber
 from ..translate.deepseek import DeepSeekTranslator
 from .server import create_app
 
@@ -47,15 +47,16 @@ def build_app(cfg: Config | None = None):
             translator=translator_factory(),
         )
 
-    _stt_singleton: dict[str, WhisperTranscriber] = {}
+    _stt_singleton: dict[str, GroqTranscriber] = {}
 
-    def stt_factory() -> WhisperTranscriber:
-        # Модель Whisper тяжёлая — держим один экземпляр на процесс.
+    def stt_factory() -> GroqTranscriber:
+        # Клиент Groq лёгкий, но держим один экземпляр на процесс.
         if "stt" not in _stt_singleton:
-            _stt_singleton["stt"] = WhisperTranscriber(
-                model_size=cfg.whisper_model,
-                device=cfg.whisper_device,
-                compute_type=cfg.whisper_compute_type,
+            _stt_singleton["stt"] = GroqTranscriber(
+                api_key=cfg.groq_api_key,
+                model=cfg.groq_model,
+                base_url=cfg.groq_base_url,
+                timeout=cfg.groq_timeout,
             )
         return _stt_singleton["stt"]
 

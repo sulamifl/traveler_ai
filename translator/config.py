@@ -50,10 +50,11 @@ class Config:
     (кроме `deepseek_api_key`, который нужен только для перевода).
     """
 
-    # STT
-    whisper_model: str = "small"
-    whisper_device: str = "auto"
-    whisper_compute_type: str = "default"
+    # STT (Groq Whisper API)
+    groq_api_key: Optional[str] = None
+    groq_model: str = "whisper-large-v3-turbo"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_timeout: float = 60.0
 
     # Перевод
     deepseek_api_key: Optional[str] = None
@@ -80,10 +81,10 @@ class Config:
     def from_env(cls) -> "Config":
         """Собрать конфиг из переменных окружения."""
         return cls(
-            whisper_model=_env_str("WHISPER_MODEL", cls.whisper_model) or cls.whisper_model,
-            whisper_device=_env_str("WHISPER_DEVICE", cls.whisper_device) or cls.whisper_device,
-            whisper_compute_type=_env_str("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type)
-            or cls.whisper_compute_type,
+            groq_api_key=_env_str("GROQ_API_KEY"),
+            groq_model=_env_str("GROQ_MODEL", cls.groq_model) or cls.groq_model,
+            groq_base_url=_env_str("GROQ_BASE_URL", cls.groq_base_url) or cls.groq_base_url,
+            groq_timeout=_env_float("GROQ_TIMEOUT", cls.groq_timeout),
             deepseek_api_key=_env_str("DEEPSEEK_API_KEY"),
             deepseek_base_url=_env_str("DEEPSEEK_BASE_URL", cls.deepseek_base_url)
             or cls.deepseek_base_url,

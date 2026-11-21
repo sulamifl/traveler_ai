@@ -126,6 +126,7 @@
     let mediaRecorder = null;
     let mediaChunks = [];
     let micStream = null;
+    let micBusy = false;
 
     function toast(text, kind) {
       const stack = $("toasts");
@@ -161,13 +162,16 @@
     }
 
     async function startRecording() {
+      if (micBusy) return;
       if (!navigator.mediaDevices || !window.MediaRecorder) {
         toast("Браузер не поддерживает запись с микрофона", "error");
         return;
       }
+      micBusy = true;
       try {
         micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (err) {
+        micBusy = false;
         toast("Нет доступа к микрофону: " + err.message, "error");
         return;
       }
@@ -178,7 +182,7 @@
       mediaRecorder = mime ? new MediaRecorder(micStream, { mimeType: mime })
                            : new MediaRecorder(micStream);
       mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) mediaChunks.push(e.data); };
-      mediaRecorder.onstop = () => sendAudio();
+      mediaRecorder.onstop = () => { micBusy = false; sendAudio(); };
       mediaRecorder.start();
 
       $("mic").classList.add("recording");
@@ -196,11 +200,11 @@
       }
       $("mic").classList.remove("recording");
       $("rec-status").style.display = "none";
-      if (!mediaChunks.length) setActivity(null);
+      if (!mediaChunks.length) { micBusy = false; setActivity(null); }
     }
 
     async function sendAudio() {
-      if (mediaChunks.length === 0) return;
+      if (mediaChunks.length === 0) { micBusy = false; return; }
       const blob = new Blob(mediaChunks, { type: mediaChunks[0].type || "audio/webm" });
       mediaChunks = [];
       const form = new FormData();
@@ -231,6 +235,8 @@
         toast("Ошибка STT: " + err.message, "error");
         setActivity("Ошибка распознавания", "error");
         setTimeout(() => setActivity(null), 2500);
+      } finally {
+        micBusy = false;
       }
     }
 

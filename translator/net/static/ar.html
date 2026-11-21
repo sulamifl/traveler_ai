@@ -156,6 +156,10 @@
     }
 
     async function startCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast("Браузер не поддерживает доступ к камере", "error");
+        return;
+      }
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
@@ -205,9 +209,15 @@
       return tmp;
     }
 
+    function resizeOverlay() {
+      if (!video.videoWidth) return;
+      const rect = video.getBoundingClientRect();
+      overlay.width = Math.round(rect.width);
+      overlay.height = Math.round(rect.height);
+    }
+
     function drawOverlay(blocks, scaleX, scaleY) {
-      overlay.width = video.clientWidth;
-      overlay.height = video.clientHeight;
+      resizeOverlay();
       ctx.clearRect(0, 0, overlay.width, overlay.height);
       ctx.font = "600 14px -apple-system, system-ui, sans-serif";
       ctx.textBaseline = "top";
@@ -293,6 +303,8 @@
     $("stop").addEventListener("click", stopCamera);
     $("scan").addEventListener("click", scan);
     $("auto").addEventListener("click", toggleAuto);
+    window.addEventListener("resize", resizeOverlay);
+    video.addEventListener("loadedmetadata", resizeOverlay);
   </script>
 </body>
 </html>

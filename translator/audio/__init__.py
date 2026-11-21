@@ -1,5 +1,5 @@
-"""Модуль захвата и обработки аудио."""
+"""Модуль захвата и обработки аудио.
 
-from .recorder import AudioRecorder, AudioRecorderError
-
-__all__ = ["AudioRecorder", "AudioRecorderError"]
+Запись с микрофона выполняется в браузере (MediaRecorder API) и
+отправляется на `/stt`. Серверный `sounddevice` не используется.
+"""
