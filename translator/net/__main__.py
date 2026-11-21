@@ -26,6 +26,8 @@ def build_app(cfg: Config | None = None):
     cfg = cfg or Config.from_env()
 
     def translator_factory() -> DeepSeekTranslator:
+        # DeepSeekTranslator сам бросит понятную ошибку при отсутствии ключа
+        # только в момент вызова translate(), а не при создании.
         return DeepSeekTranslator(
             api_key=cfg.deepseek_api_key,
             base_url=cfg.deepseek_base_url,

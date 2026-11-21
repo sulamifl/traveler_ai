@@ -2,6 +2,8 @@
 
 Связывает компоненты через протоколы, чтобы их можно было подменять
 в тестах и в разных режимах (CLI, WebSocket, AR).
+
+STT по умолчанию — Groq Whisper API (`translator.stt.groq_stt`).
 """
 
 from __future__ import annotations

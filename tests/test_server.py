@@ -322,11 +322,15 @@ def test_groq_transcriber_missing_file_raises(tmp_path):
         stt.transcribe(tmp_path / "missing.webm")
 
 
-def test_groq_transcriber_requires_api_key():
-    from translator.stt.groq_stt import GroqTranscriber
+def test_groq_transcriber_requires_api_key(tmp_path):
+    from translator.stt.groq_stt import GroqSTTError, GroqTranscriber
 
-    with pytest.raises(ValueError):
-        GroqTranscriber()
+    # Конструктор не падает без ключа — приложение должно стартовать.
+    stt = GroqTranscriber()
+    audio_file = tmp_path / "speech.webm"
+    audio_file.write_bytes(b"\x00\x01\x02")
+    with pytest.raises(GroqSTTError):
+        stt.transcribe(audio_file)
 
 
 def test_stt_endpoint_without_factory_returns_503():

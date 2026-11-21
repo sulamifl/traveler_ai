@@ -246,7 +246,10 @@ def create_app(
             result = stt.transcribe(tmp.name, language=language)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Ошибка STT: %s", exc)
-            raise HTTPException(status_code=500, detail=str(exc))
+            msg = str(exc)
+            if "GROQ_API_KEY" in msg or "api_key" in msg.lower():
+                raise HTTPException(status_code=503, detail=msg)
+            raise HTTPException(status_code=500, detail=msg)
         finally:
             try:
                 _Path(tmp.name).unlink(missing_ok=True)

@@ -1,11 +1,12 @@
 """Модуль распознавания речи (STT)."""
 
 from .base import Transcriber, TranscriptionResult, TranscriptionSegment
-from .whisper_stt import WhisperTranscriber
+from .groq_stt import GroqSTTError, GroqTranscriber
 
 __all__ = [
     "Transcriber",
     "TranscriptionResult",
     "TranscriptionSegment",
-    "WhisperTranscriber",
+    "GroqSTTError",
+    "GroqTranscriber",
 ]

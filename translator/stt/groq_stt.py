@@ -43,10 +43,8 @@ class GroqTranscriber:
         timeout: float = DEFAULT_TIMEOUT,
         client: Optional[object] = None,
     ) -> None:
-        if not api_key and client is None:
-            raise ValueError(
-                "Не задан GROQ_API_KEY. Получите бесплатный ключ на console.groq.com"
-            )
+        # Не падаем при отсутствии ключа: приложение должно стартовать
+        # без STT, а ошибка возникнет только при попытке распознавания.
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
@@ -56,6 +54,11 @@ class GroqTranscriber:
     def _get_client(self) -> object:
         if self._client is not None:
             return self._client
+        if not self.api_key:
+            raise GroqSTTError(
+                "Не задан GROQ_API_KEY. Получите бесплатный ключ на "
+                "https://console.groq.com/keys и добавьте его в переменные окружения."
+            )
         try:
             from groq import Groq  # локальный импорт: тесты могут мокать
         except ImportError as exc:  # pragma: no cover

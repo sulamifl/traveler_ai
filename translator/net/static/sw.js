@@ -1,5 +1,5 @@
 // Простой service worker: кэширует статику для офлайн-запуска оболочки.
-const CACHE = "translator-ar-v1";
+const CACHE = "translator-ar-v2";
 const ASSETS = [
   "/",
   "/ar",

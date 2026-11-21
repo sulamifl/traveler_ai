@@ -5,7 +5,7 @@
 
 ## Возможности
 
-- **MVP:** запись с микрофона → STT (faster-whisper) → перевод (DeepSeek) → TTS (edge-tts).
+- **MVP:** запись с микрофона в браузере → STT (Groq Whisper API) → перевод (DeepSeek) → TTS (edge-tts).
 - **Групповой режим:** WebSocket-сессии, роли speaker/listener, каждый слушатель
   получает перевод на свой язык; вопросы из группы переводятся на язык говорящего.
 - **История:** SQLite с автором, оригиналом, переводом, языками и временем.
@@ -69,18 +69,24 @@ tesseract --list-langs
 | `DEEPSEEK_API_KEY` | — | Ключ DeepSeek (обязателен для перевода) |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Базовый URL API |
 | `DEEPSEEK_MODEL` | `deepseek-chat` | Модель |
-| `WHISPER_MODEL` | `small` | Размер модели Whisper |
-| `WHISPER_DEVICE` | `auto` | `cpu` / `cuda` / `auto` |
+| `GROQ_API_KEY` | — | Ключ Groq (обязателен для STT) |
+| `GROQ_MODEL` | `whisper-large-v3-turbo` | Модель Whisper на Groq |
+| `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` | Базовый URL Groq |
+| `GROQ_TIMEOUT` | `60.0` | Таймаут запроса к Groq, сек |
 | `HISTORY_DB_PATH` | `history.db` | Путь к SQLite |
 | `LOG_LEVEL` | `INFO` | Уровень логирования |
 
+Ключ Groq можно получить бесплатно на https://console.groq.com/keys.
+
 ## Запуск
 
-### CLI (один проход: запись → перевод → озвучка)
+### CLI (один проход: STT → перевод → озвучка)
 
 ```bash
-python -m translator.cli --target en --duration 5 --tts-out out.mp3
+python -m translator.cli --audio recording.webm --target en --tts-out out.mp3
 ```
+
+Запись с микрофона выполняется в браузере (MediaRecorder API) на странице `/`.
 
 ### Веб-сервер (групповой режим + AR)
 
@@ -131,15 +137,25 @@ python -m pytest -q
 
 ```
 translator/
-  audio/       — запись с микрофона
-  stt/         — распознавание речи (faster-whisper)
+  stt/         — распознавание речи (Groq Whisper API)
   translate/   — перевод (DeepSeek)
   tts/         — синтез речи (edge-tts)
   history/     — SQLite-история
-  net/         — WebSocket-сервер + веб-UI
-  ar/          — камера, OCR, описание, overlay
+  net/         — WebSocket-сервер + веб-UI (микрофон и камера — в браузере)
+  ar/          — OCR, описание, overlay
   config.py    — конфиг через env
   logging_setup.py
   pipeline.py  — STT → перевод → TTS
   cli.py       — CLI-точка входа
 ```
+
+## Деплой на Render
+
+Проект содержит `Dockerfile` и `render.yaml` для деплоя на Render
+(бесплатный план). В Dockerfile устанавливаются системные зависимости
+`tesseract-ocr` и `libglib2.0-0`.
+
+Переменные окружения, которые нужно задать в Render:
+
+- `DEEPSEEK_API_KEY` — ключ DeepSeek
+- `GROQ_API_KEY` — ключ Groq (бесплатный)
